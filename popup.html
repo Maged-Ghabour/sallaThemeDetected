@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Salla &amp; Zid Theme Detector</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="popup-wrapper" id="app">
+
+    <!-- ── Header ── -->
+    <header class="header">
+      <div class="header-brand">
+        <div class="header-logo">🔍</div>
+        <div class="header-titles">
+          <div class="header-title">كاشف المنصة والثيم</div>
+          <div class="header-subtitle">Salla &amp; Zid Theme Detector</div>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-icon" id="btn-copy" title="نسخ النتيجة">📋</button>
+      </div>
+    </header>
+
+    <!-- ── Loading State ── -->
+    <div class="main-content" id="state-loading">
+      <div class="spinner-wrap">
+        <div class="spinner">
+          <div class="spinner-ring"></div>
+          <div class="spinner-ring"></div>
+        </div>
+        <div class="spinner-text">جارٍ الفحص...</div>
+      </div>
+    </div>
+
+    <!-- ── Error State ── -->
+    <div class="main-content hidden" id="state-error">
+      <div class="state-box fade-in">
+        <div class="state-icon">⚠️</div>
+        <div class="state-title">تعذّر الفحص</div>
+        <div class="state-desc" id="error-message">حدث خطأ أثناء محاولة فحص الصفحة.</div>
+      </div>
+    </div>
+
+    <!-- ── Result State ── -->
+    <div class="main-content hidden" id="state-result">
+
+      <!-- Platform Card -->
+      <div class="platform-card unknown fade-in" id="platform-card">
+        <div class="platform-header">
+          <div class="platform-icon-wrap">
+            <div class="platform-icon" id="platform-icon">❓</div>
+            <div class="platform-info">
+              <div class="platform-label">المنصة المكتشفة</div>
+              <div class="platform-name" id="platform-name">غير معروفة</div>
+            </div>
+          </div>
+          <div class="status-badge not-detected" id="status-badge">
+            <div class="dot"></div>
+            <span id="status-text">غير مكتشف</span>
+          </div>
+        </div>
+
+        <div class="card-divider"></div>
+
+        <div class="info-grid">
+
+          <!-- Theme name row -->
+          <div class="info-row">
+            <div class="info-key">
+              <span>🎨</span>
+              اسم الثيم
+            </div>
+            <div class="info-value not-found" id="theme-name">غير محدد</div>
+          </div>
+
+          <!-- Custom theme row -->
+          <div class="info-row" id="custom-row">
+            <div class="info-key">
+              <span>✏️</span>
+              نوع الثيم
+            </div>
+            <div class="info-value" id="theme-type">—</div>
+          </div>
+
+          <!-- Confidence row -->
+          <div class="info-row">
+            <div class="info-key">
+              <span>📊</span>
+              درجة الثقة
+            </div>
+            <div class="confidence-wrap">
+              <div class="confidence-track">
+                <div class="confidence-fill low" id="confidence-fill" style="width:0%"></div>
+              </div>
+              <div class="confidence-label-text low" id="confidence-label">منخفضة</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Signals collapsible card -->
+      <div class="signals-card fade-in fade-in-delay-1" id="signals-card">
+        <div class="signals-header" id="signals-toggle">
+          <div class="signals-header-left">
+            <span>📡</span>
+            إشارات الكشف
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <div class="signals-count" id="signals-count">0</div>
+            <div class="signals-chevron" id="signals-chevron">▼</div>
+          </div>
+        </div>
+        <div class="signals-body" id="signals-body">
+          <div class="signals-list" id="signals-list">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Footer / Rescan ── -->
+    <div class="footer" id="main-footer">
+      <button class="btn btn-rescan" id="btn-rescan">
+        <span>🔄</span>
+        إعادة الفحص
+      </button>
+      <div class="footer-url" id="footer-url"></div>
+    </div>
+
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

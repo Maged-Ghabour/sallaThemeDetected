@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Generate Extension Icons</title>
+<style>
+  body { font-family: system-ui; background: #0d0f14; color: #f0f2f8;
+         display: flex; flex-direction: column; align-items: center;
+         justify-content: center; min-height: 100vh; gap: 20px; margin: 0; }
+  h2  { color: #a78bfa; margin-bottom: 4px; }
+  p   { color: #8b93a8; font-size: 14px; }
+  .canvases { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; justify-content: center; }
+  canvas { border-radius: 20%; border: 1px solid rgba(255,255,255,0.1); }
+  button {
+    background: linear-gradient(135deg, #7c3aed, #0ea5e9);
+    color: #fff; border: none; padding: 12px 32px; border-radius: 10px;
+    font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px;
+  }
+  button:hover { opacity: 0.9; }
+  .note { font-size: 12px; color: #4a5568; margin-top: 6px; }
+</style>
+</head>
+<body>
+<h2>🔍 Icon Generator</h2>
+<p>Click the button — all 4 PNG icons will download automatically.</p>
+<div class="canvases" id="canvases"></div>
+<button onclick="downloadAll()">⬇️ Download All Icons</button>
+<p class="note">Save them inside an <strong>icons/</strong> folder next to your extension files.</p>
+
+<script>
+const sizes = [16, 32, 48, 128];
+
+function drawIcon(size) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  const s = size;
+
+  // Background
+  ctx.fillStyle = '#0d0f14';
+  ctx.beginPath();
+  ctx.roundRect(0, 0, s, s, s * 0.18);
+  ctx.fill();
+
+  // Subtle bg glow
+  const glow = ctx.createRadialGradient(s * 0.65, s * 0.3, 0, s * 0.5, s * 0.5, s * 0.7);
+  glow.addColorStop(0, 'rgba(124,58,237,0.25)');
+  glow.addColorStop(0.5, 'rgba(14,165,233,0.12)');
+  glow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, s, s, s * 0.18);
+  ctx.fill();
+
+  // Magnifying glass
+  const cx   = s * 0.42;
+  const cy   = s * 0.41;
+  const r    = s * 0.24;
+  const lw   = s * 0.1;
+  const grad = ctx.createLinearGradient(cx - r, cy - r, cx + r, cy + r);
+  grad.addColorStop(0,   '#7c3aed');
+  grad.addColorStop(0.5, '#a855f7');
+  grad.addColorStop(1,   '#0ea5e9');
+
+  // Circle (outline)
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = grad;
+  ctx.lineWidth   = lw;
+  ctx.lineCap     = 'round';
+  ctx.stroke();
+
+  // Handle
+  const angle  = Math.PI * 0.75;
+  const hx1 = cx + (r - lw * 0.3) * Math.cos(angle);
+  const hy1 = cy + (r - lw * 0.3) * Math.sin(angle);
+  const hx2 = cx + (r + s * 0.25) * Math.cos(angle);
+  const hy2 = cy + (r + s * 0.25) * Math.sin(angle);
+
+  const hGrad = ctx.createLinearGradient(hx1, hy1, hx2, hy2);
+  hGrad.addColorStop(0, '#a855f7');
+  hGrad.addColorStop(1, '#0ea5e9');
+
+  ctx.beginPath();
+  ctx.moveTo(hx1, hy1);
+  ctx.lineTo(hx2, hy2);
+  ctx.strokeStyle = hGrad;
+  ctx.lineWidth   = lw;
+  ctx.lineCap     = 'round';
+  ctx.stroke();
+
+  // Inner lens shine
+  if (size >= 32) {
+    const shine = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.3, 0, cx, cy, r * 0.9);
+    shine.addColorStop(0, 'rgba(255,255,255,0.18)');
+    shine.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.beginPath();
+    ctx.arc(cx, cy, r - lw * 0.5, 0, Math.PI * 2);
+    ctx.fillStyle = shine;
+    ctx.fill();
+  }
+
+  return canvas;
+}
+
+// Preview all sizes on page load
+window.addEventListener('DOMContentLoaded', () => {
+  const wrap = document.getElementById('canvases');
+  sizes.forEach(sz => {
+    const c = drawIcon(sz);
+    c.title = `${sz}x${sz}`;
+    c.style.width  = Math.max(sz, 48) + 'px';
+    c.style.height = Math.max(sz, 48) + 'px';
+    wrap.appendChild(c);
+  });
+});
+
+function downloadAll() {
+  sizes.forEach((sz, i) => {
+    const c = drawIcon(sz);
+    setTimeout(() => {
+      const link = document.createElement('a');
+      link.download = `icon${sz}.png`;
+      link.href = c.toDataURL('image/png');
+      link.click();
+    }, i * 200);
+  });
+}
+</script>
+</body>
+</html>
