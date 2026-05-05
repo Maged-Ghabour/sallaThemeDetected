@@ -101,7 +101,8 @@ const TRANSLATIONS = {
     platform_wix: "ويكس",
     platform_squarespace: "سكوير سبيس",
     platform_wordpress: "وردبريس",
-    platform_unknown: "غير معروفة"
+    platform_unknown: "غير معروفة",
+    similar_stores_title: "متاجر تستخدم نفس الثيم"
   },
   en: {
     header_title: "Platform & Theme Detector",
@@ -155,7 +156,8 @@ const TRANSLATIONS = {
     platform_wix: "Wix",
     platform_squarespace: "Squarespace",
     platform_wordpress: "WordPress",
-    platform_unknown: "Unknown"
+    platform_unknown: "Unknown",
+    similar_stores_title: "Stores using same theme"
   }
 };
 
@@ -193,7 +195,7 @@ const CONFIDENCE_MAP = {
 };
 
 const SALLA_THEME_IDS_LOCAL = {
-  "1247874246": "رائد", "568597563": "نمو", "2038173539": "واثق", "404046066": "فريد", "392563753": "زيين",
+  /* "1247874246": "رائد", */ "568597563": "نمو", "2038173539": "واثق", "404046066": "فريد", "392563753": "زيين",
   "766360058": "فخامة", "1617628556": "امتياز", "1034648396": "ملاك", "1696219221": "وسام", "197173496": "مختلف",
   "575338046": "طاهر", "513499943": "بريستيج", "268429610": "نمو", "1245464956": "جميل", "1049159835": "موعد",
   "600639717": "كليك", "466157229": "أكاسيا", "2048178472": "بيوتي", "1480248829": "متجر", "2101895899": "رهيب",
@@ -245,7 +247,7 @@ const SALLA_THEME_IDS_LOCAL = {
   "1351879850": "تكنو", "114290089": "تاج", "1865839635": "أناقة", "2113118697": "فنجال", "1057953436": "بروتال",
   "740215998": "بريستيج", "1378987453": "زاهر", "1556551807": "فخامة", "1548352431": "مُختلف", "814202285": "زين",
   "1723506348": "امتياز", "349994915": "وسام", "989286562": "فريد", "1764372897": "واثق", "73130640": "عالي",
-  "1130931637": "ملاك", "5541564": "كليك", "1298199463": "رائد",
+  "1130931637": "ملاك", "5541564": "كليك", /* "1298199463": "رائد" */
 };
 
 const ZID_THEME_IDS_LOCAL = {
@@ -306,7 +308,7 @@ const ZID_THEME_IDS_LOCAL = {
   "355c5bee-200f-44fd-b0cb-90fe67043ac5": "مذاق",
   "bb4149c1-ee82-458d-97c0-ba07092f0218": "لوكشري",
   "adcdabf2-d6f1-4194-9d41-7b8f5c545302": "فريش مارت",
-  "f71999e8-e5b2-4eda-bb7c-f16aca944f56": "الرائد",
+  /* "f71999e8-e5b2-4eda-bb7c-f16aca944f56": "الرائد", */
   "97e09838-7907-46ed-9d59-150d5ac955e2": "ياسمين",
   "42d39573-bbb5-47c4-a5ee-2441e185a336": "رونــق",
   "cfd36d69-0997-42a1-9239-1a673f212465": "حكاية",
@@ -449,7 +451,7 @@ function renderResult(data) {
     if (remote.social && remote.social.whatsapp) {
       const waBtn = document.querySelector(".btn-whatsapp");
       if (waBtn) {
-        waBtn.href = `https://wa.me/${remote.social.whatsapp.replace('+', '')}?text=${encodeURIComponent(currentLang === 'ar' ? 'استفسار من الإضافة' : 'Inquiry from Extension')}`;
+        waBtn.href = `https://wa.me/${String(remote.social.whatsapp || "").replace('+', '')}?text=${encodeURIComponent(currentLang === 'ar' ? 'استفسار من الإضافة' : 'Inquiry from Extension')}`;
       }
     }
   });
@@ -522,6 +524,63 @@ function renderResult(data) {
 
   // ── Footer URL ──
   // (Removed as element was deleted)
+
+  // ── Similar Stores ──
+  if (data["theme"] && data["theme"]["name"]) {
+    fetchSimilarStores(data["theme"]["name"], data["url"]);
+  } else {
+    document.getElementById("similar-stores-card").classList.add("hidden");
+  }
+}
+
+async function fetchSimilarStores(themeName, currentUrl) {
+  const similarCard = document.getElementById("similar-stores-card");
+  const similarList = document.getElementById("similar-stores-list");
+  const similarStatus = document.getElementById("similar-status");
+  
+  if (!similarCard || !similarList || !similarStatus) return;
+
+  similarCard.classList.remove("hidden");
+  similarStatus.textContent = currentLang === "ar" ? "جارٍ البحث عن متاجر مشابهة..." : "Searching for similar stores...";
+  similarList.innerHTML = "";
+
+  try {
+    const domain = currentUrl ? new URL(currentUrl).hostname : null;
+    
+    // Use the production server URL
+    const baseUrl = "https://affiliate.iqla3.com";
+    const apiUrl = `${baseUrl}/api/stores/similar?theme_name=${encodeURIComponent(themeName)}&current_domain=${encodeURIComponent(domain)}`;
+    
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) {
+        throw new Error(`Server Error: ${response.status}`);
+    }
+    
+    const result = await response.json();
+
+    if (result.success && result.stores && result.stores.length > 0) {
+      similarStatus.textContent = ""; // Clear status
+      result.stores.forEach(store => {
+        const item = document.createElement("a");
+        item.href = `https://${store}`;
+        item.target = "_blank";
+        item.className = "similar-store-item";
+        item.innerHTML = `
+          <span class="similar-store-domain">${store}</span>
+          <span class="similar-store-icon">↗️</span>
+        `;
+        similarList.appendChild(item);
+      });
+    } else {
+      similarStatus.textContent = currentLang === "ar" ? "لا توجد متاجر مشابهة مسجلة حالياً." : "No similar stores found.";
+    }
+  } catch (e) {
+    console.error("Similar stores fetch failed:", e);
+    similarStatus.textContent = currentLang === "ar" 
+        ? "⚠️ تعذر الاتصال بالسيرفر. تأكد من تشغيل php artisan serve" 
+        : "⚠️ Connection failed. Make sure server is running.";
+  }
 }
 
 function renderError(msg) {

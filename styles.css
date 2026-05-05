@@ -534,3 +534,49 @@ body::after  { bottom:-120px; left:-60px; background: radial-gradient(circle,var
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+/* ── Similar Stores ── */
+.similar-stores-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+.similar-header {
+  display: flex; align-items: center; gap: 9px;
+  font-weight: 800; font-size: 13.5px; margin-bottom: 14px; color: #fff;
+}
+.similar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.similar-store-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  text-decoration: none;
+  transition: var(--transition);
+}
+.similar-store-item:hover {
+  background: rgba(255,255,255,0.06);
+  border-color: var(--border-active);
+  transform: translateX(-3px);
+}
+.similar-store-domain {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
+}
+.similar-store-icon {
+  font-size: 12px;
+  color: var(--p-indigo);
+}

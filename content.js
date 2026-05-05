@@ -12,7 +12,7 @@
   // javascript-obfuscator:disable
   const SALLA_THEME_IDS = {
     // --- Salla Themes (Extracted & Merged) ---
-    "1247874246": "رائد", "568597563": "نمو", "2038173539": "واثق", "404046066": "فريد", "392563753": "زيين",
+    /* "1247874246": "رائد", */ "568597563": "نمو", "2038173539": "واثق", "404046066": "فريد", "392563753": "زيين",
     "766360058": "فخامة", "1617628556": "امتياز", "1034648396": "ملاك", "1696219221": "وسام", "197173496": "مختلف",
     "575338046": "طاهر", "513499943": "بريستيج", "268429610": "نمو", "1245464956": "جميل", "1049159835": "موعد",
     "600639717": "كليك", "466157229": "أكاسيا", "2048178472": "بيوتي", "1480248829": "متجر", "2101895899": "رهيب",
@@ -64,7 +64,7 @@
     "1351879850": "تكنو", "114290089": "تاج", "1865839635": "أناقة", "2113118697": "فنجال", "1057953436": "بروتال",
     "740215998": "بريستيج", "1378987453": "زاهر", "1556551807": "فخامة", "1548352431": "مُختلف", "814202285": "زين",
     "1723506348": "امتياز", "349994915": "وسام", "989286562": "فريد", "1764372897": "واثق", "73130640": "عالي",
-    "1130931637": "ملاك", "5541564": "كليك", "1298199463": "رائد",
+    "1130931637": "ملاك", "5541564": "كليك", /* "1298199463": "رائد" */
   };
 
   const ZID_THEME_IDS = {
@@ -126,7 +126,7 @@
     "355c5bee-200f-44fd-b0cb-90fe67043ac5": "مذاق",
     "bb4149c1-ee82-458d-97c0-ba07092f0218": "لوكشري",
     "adcdabf2-d6f1-4194-9d41-7b8f5c545302": "فريش مارت",
-    "f71999e8-e5b2-4eda-bb7c-f16aca944f56": "الرائد",
+    /* "f71999e8-e5b2-4eda-bb7c-f16aca944f56": "الرائد", */
     "97e09838-7907-46ed-9d59-150d5ac955e2": "ياسمين",
     "42d39573-bbb5-47c4-a5ee-2441e185a336": "رونــق",
     "cfd36d69-0997-42a1-9239-1a673f212465": "حكاية",
@@ -148,7 +148,7 @@
     "fbef5f5c-0a04-4fd3-8d1e-8cb9687f87a9": "قلوري",
     "483e7db3-f138-40aa-a9c4-06d33d60ae32": "المثالي",
     "04adf1e6-d074-4de1-a9cb-9b690a72ec47": "حسام",
-    "cloud": "غيم", "pioneer": "رائد", "modern": "عصري",
+    "cloud": "غيم", /* "pioneer": "رائد", */ "modern": "عصري",
   };
 
   const SALLA_SLUG_MAP = {
@@ -160,7 +160,7 @@
     amber: "Amber", pearl: "Pearl", sapphire: "Sapphire",
     malak: "ملاك", basma: "بسمة", nour: "نور",
     rawnaq: "رونق", majd: "مجد", iilaf: "إيلاف",
-    click: "كليك", raed: "رائد", celia: "سيليا",
+    click: "كليك", /* raed: "رائد", */ celia: "سيليا",
   };
   // javascript-obfuscator:enable
 
@@ -172,7 +172,7 @@
     return new Promise((resolve) => {
       const script = document.createElement('script');
       const eventId = 'det_' + Math.random().toString(36).substring(2, 11);
-      
+
       script.textContent = `
         (function() {
           try {
@@ -188,16 +188,16 @@
           }
         })();
       `;
-      
-      const handler = function(e) {
+
+      const handler = function (e) {
         document.removeEventListener(eventId, handler);
         if (script.parentNode) script.remove();
         resolve(e.detail || {});
       };
-      
+
       document.addEventListener(eventId, handler);
       (document.head || document.documentElement).appendChild(script);
-      
+
       setTimeout(() => {
         document.removeEventListener(eventId, handler);
         if (script.parentNode) script.remove();
@@ -399,8 +399,10 @@
 
     // ID Mapping (Strongest override)
     const mapping = platform === "Salla" ? SALLA_THEME_IDS : ZID_THEME_IDS;
+    console.log(`[Detector] Checking mapping for ID: ${themeId} in platform: ${platform}`);
     if (themeId && mapping[themeId]) {
       themeName = mapping[themeId];
+      console.log(`[Detector] Found theme name in mapping: ${themeName}`);
       isCustom = false;
     } else if (!themeId) {
       // Emergency Search: Search entire HTML for any known ID if not found yet
@@ -442,7 +444,7 @@
       try {
         const themeMatch = html.match(/"theme_name"\s*:\s*"([^"]+)"/i) || html.match(/"name"\s*:\s*"([^"]+)"[^}]*theme/i);
         if (themeMatch) themeName = themeMatch[1];
-      } catch(e) {}
+      } catch (e) { }
     }
 
     if (!themeName && themeId) themeName = `ثيم رقم ${themeId}`;
@@ -457,8 +459,8 @@
 
   async function run(remoteConfig = {}, options = {}) {
     const isSilent = options.isSilent || false;
-    const remote = remoteConfig; 
-    
+    const remote = remoteConfig;
+
     // Attempt to get page globals, but don't let it crash the whole run
     let passedGlobals = {};
     try {
@@ -532,10 +534,10 @@
     }
 
     result["confidenceLabel"] = result["confidence"] >= 70 ? "high" : (result["confidence"] >= 35 ? "medium" : "low");
-    
+
     try {
       chrome.storage.local.set({ "detectionResult": result });
-    } catch(e) {}
+    } catch (e) { }
 
     if (result["platform"]) {
       try {
@@ -544,7 +546,7 @@
           "platform": result["platform"],
           "result": result
         });
-      } catch(e) {}
+      } catch (e) { }
 
       if (!isSilent) {
         showToast(result, remote);
@@ -560,7 +562,7 @@
     const platform = data["platform"];
     const isSalla = platform === 'Salla';
     const isZid = platform === 'Zid';
-    
+
     const remoteCoupons = remoteConfig["coupons"] || {};
     const platform_salla = "Salla";
     const platform_zid = "Zid";
@@ -571,13 +573,16 @@
     const platform_squarespace = "Squarespace";
     const platform_wordpress = "WordPress";
     const platform_unknown = "Unknown";
-    
+
     const couponData = remoteCoupons[platform] || { "code": "OFFER2024", "link": "#" };
-    const marketing = remoteConfig["marketing"] || { "whatsapp": "+966500000000", "message": "استفسار" };
+    const marketing = {
+      "whatsapp": (remoteConfig.social && remoteConfig.social.whatsapp) || (remoteConfig.marketing && remoteConfig.marketing.whatsapp) || "+966500000000",
+      "message": (remoteConfig.marketing && remoteConfig.marketing.message) || "استفسار"
+    };
 
     const themeId = data["theme"] && data["theme"]["themeId"];
     const themeAffiliate = (remoteConfig["themeLinks"] && themeId && remoteConfig["themeLinks"][themeId]) || null;
-    
+
     // If we have a specific affiliate link, use it. Otherwise fallback to general marketing.
     const buyLink = themeAffiliate ? themeAffiliate.affiliateUrl : (isSalla ? "https://salla.sa/themes" : (isZid ? "https://zid.sa/themes" : "#"));
     const discountCode = themeAffiliate ? themeAffiliate.discountCode : "OFFER2024";
@@ -652,14 +657,14 @@
       }
 
       .s-mini-badge {
-        background: ${isSalla ? 'linear-gradient(90deg, #6366f1, #a855f7)' : 
-                     (isZid ? 'linear-gradient(90deg, #06b6d4, #3b82f6)' : 
-                     (platform === 'Shopify' ? 'linear-gradient(90deg, #95bf47, #5e8e3e)' : 
-                     (platform === 'YouCan' ? 'linear-gradient(90deg, #00b894, #00cec9)' : 
-                     (platform === 'Magento' ? 'linear-gradient(90deg, #ee672f, #f26322)' : 
-                     (platform === 'PrestaShop' ? 'linear-gradient(90deg, #df0067, #a9004e)' : 
-                     (platform === 'Wix' ? 'linear-gradient(90deg, #000, #333)' : 
-                     'linear-gradient(90deg, #666, #333)'))))))} !important;
+        background: ${isSalla ? 'linear-gradient(90deg, #6366f1, #a855f7)' :
+        (isZid ? 'linear-gradient(90deg, #06b6d4, #3b82f6)' :
+          (platform === 'Shopify' ? 'linear-gradient(90deg, #95bf47, #5e8e3e)' :
+            (platform === 'YouCan' ? 'linear-gradient(90deg, #00b894, #00cec9)' :
+              (platform === 'Magento' ? 'linear-gradient(90deg, #ee672f, #f26322)' :
+                (platform === 'PrestaShop' ? 'linear-gradient(90deg, #df0067, #a9004e)' :
+                  (platform === 'Wix' ? 'linear-gradient(90deg, #000, #333)' :
+                    'linear-gradient(90deg, #666, #333)'))))))} !important;
         color: #fff !important;
         padding: 4px 10px !important;
         border-radius: 8px !important;
@@ -765,7 +770,7 @@
 
       <div class="s-mini-btns">
         <a href="${buyLink}" target="_blank" class="s-mini-btn s-mini-btn-buy">شراء الثيم</a>
-        <a href="https://wa.me/${marketing["whatsapp"].replace('+', '')}" target="_blank" class="s-mini-btn s-mini-btn-wa">تصميم متجر</a>
+        <a href="https://wa.me/${(marketing["whatsapp"] || "").replace('+', '')}" target="_blank" class="s-mini-btn s-mini-btn-wa">تصميم متجر</a>
       </div>
 
       <div class="s-mini-footer">Salla Theme Detector • Cloud v2.2</div>
@@ -774,8 +779,8 @@
     document.body.appendChild(modal);
 
     modal.querySelector("#s-mini-close-btn").addEventListener("click", () => modal.remove());
-    
-    modal.querySelector("#s-mini-copy-btn").addEventListener("click", function() {
+
+    modal.querySelector("#s-mini-copy-btn").addEventListener("click", function () {
       navigator.clipboard.writeText(couponData["code"]).then(() => {
         this.innerText = 'تم النسخ';
         setTimeout(() => this.innerText = 'نسخ', 2000);
@@ -866,7 +871,7 @@
   // --- Initialize ---
   // Run silently on load to update badge/storage
   chrome.storage.local.get("remoteConfig", (data) => {
-    run(data.remoteConfig || {}, { isSilent: true }).catch(() => {});
+    run(data.remoteConfig || {}, { isSilent: true }).catch(() => { });
   });
 
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -877,12 +882,20 @@
     if (message.action === "detect" || message["action"] === "detect") {
       // Merge remote config if available
       const remote = message["remoteConfig"] || {};
-      if (remote["salla_themes"]) Object.assign(SALLA_THEME_IDS, remote["salla_themes"]);
-      if (remote["zid_themes"]) Object.assign(ZID_THEME_IDS, remote["zid_themes"]);
+      if (remote["salla_themes"]) {
+        console.log("[Detector] Merging remote Salla themes:", remote["salla_themes"]);
+        Object.assign(SALLA_THEME_IDS, remote["salla_themes"]);
+      }
+      if (remote["zid_themes"]) {
+        console.log("[Detector] Merging remote Zid themes:", remote["zid_themes"]);
+        Object.assign(ZID_THEME_IDS, remote["zid_themes"]);
+      }
 
       run(remote, { isSilent: false }).then(result => {
+        console.log("[Detector] Detection result:", result);
         sendResponse(result);
       }).catch(err => {
+        console.error("[Detector] Detection error:", err);
         sendResponse({ "error": err.message });
       });
       return true;
