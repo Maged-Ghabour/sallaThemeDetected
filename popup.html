@@ -14,11 +14,13 @@
       <div class="header-brand">
         <div class="header-logo">🔍</div>
         <div class="header-titles">
-          <div class="header-title">كاشف المنصة والثيم</div>
+          <div class="header-title" data-i18n="header_title">كاشف المنصة والثيم</div>
           <div class="header-subtitle">Salla &amp; Zid Theme Detector</div>
         </div>
       </div>
       <div class="header-actions">
+        <button class="btn btn-icon" id="btn-search" title="Search Theme">🔍</button>
+        <button class="btn btn-lang" id="btn-lang" title="Switch Language">EN</button>
         <button class="btn btn-icon" id="btn-copy" title="نسخ النتيجة">📋</button>
       </div>
     </header>
@@ -30,7 +32,7 @@
           <div class="spinner-ring"></div>
           <div class="spinner-ring"></div>
         </div>
-        <div class="spinner-text">جارٍ الفحص...</div>
+        <div class="spinner-text" data-i18n="loading_text">جارٍ الفحص...</div>
       </div>
     </div>
 
@@ -38,8 +40,8 @@
     <div class="main-content hidden" id="state-error">
       <div class="state-box fade-in">
         <div class="state-icon">⚠️</div>
-        <div class="state-title">تعذّر الفحص</div>
-        <div class="state-desc" id="error-message">حدث خطأ أثناء محاولة فحص الصفحة.</div>
+        <div class="state-title" data-i18n="error_title">تعذّر الفحص</div>
+        <div class="state-desc" id="error-message" data-i18n="error_desc">حدث خطأ أثناء محاولة فحص الصفحة.</div>
       </div>
     </div>
 
@@ -52,13 +54,13 @@
           <div class="platform-icon-wrap">
             <div class="platform-icon" id="platform-icon">❓</div>
             <div class="platform-info">
-              <div class="platform-label">المنصة المكتشفة</div>
+              <div class="platform-label" data-i18n="platform_label">المنصة المكتشفة</div>
               <div class="platform-name" id="platform-name">غير معروفة</div>
             </div>
           </div>
           <div class="status-badge not-detected" id="status-badge">
             <div class="dot"></div>
-            <span id="status-text">غير مكتشف</span>
+            <span id="status-text" data-i18n="status_not_detected">غير مكتشف</span>
           </div>
         </div>
 
@@ -70,66 +72,149 @@
           <div class="info-row">
             <div class="info-key">
               <span>🎨</span>
-              اسم الثيم
+              <span data-i18n="theme_name_label">اسم الثيم</span>
             </div>
-            <div class="info-value not-found" id="theme-name">غير محدد</div>
+            <div class="info-value not-found" id="theme-name" data-i18n="unknown">غير محدد</div>
           </div>
 
-          <!-- Custom theme row -->
-          <div class="info-row" id="custom-row">
+          <!-- Discount Code Row (Dynamic) -->
+          <div class="info-row hidden" id="discount-code-row">
             <div class="info-key">
-              <span>✏️</span>
-              نوع الثيم
+              <span>🏷️</span>
+              <span>كود الخصم</span>
             </div>
-            <div class="info-value" id="theme-type">—</div>
-          </div>
-
-          <!-- Confidence row -->
-          <div class="info-row">
-            <div class="info-key">
-              <span>📊</span>
-              درجة الثقة
-            </div>
-            <div class="confidence-wrap">
-              <div class="confidence-track">
-                <div class="confidence-fill low" id="confidence-fill" style="width:0%"></div>
-              </div>
-              <div class="confidence-label-text low" id="confidence-label">منخفضة</div>
+            <div class="discount-value" id="discount-code-value">
+              <span id="discount-code-text"></span>
+              <button class="btn-copy-code" id="btn-copy-discount" title="نسخ الكود">📋</button>
             </div>
           </div>
 
+        </div>
+
+        <!-- Buy Theme Button (Full Width) -->
+        <div class="hidden" id="buy-theme-row" style="margin-top:6px">
+          <a href="#" target="_blank" class="buy-link-btn" id="buy-theme-link">
+            <span>🛒</span>
+            <span>شراء هذا الثيم بخصم حصري</span>
+          </a>
         </div>
       </div>
 
-      <!-- Signals collapsible card -->
-      <div class="signals-card fade-in fade-in-delay-1" id="signals-card">
-        <div class="signals-header" id="signals-toggle">
-          <div class="signals-header-left">
-            <span>📡</span>
-            إشارات الكشف
-          </div>
-          <div style="display:flex; align-items:center; gap:6px;">
-            <div class="signals-count" id="signals-count">0</div>
-            <div class="signals-chevron" id="signals-chevron">▼</div>
-          </div>
+
+      <!-- Visual Identity Card -->
+      <div class="visuals-card fade-in fade-in-delay-1" id="visuals-card">
+        <div class="visuals-header">
+          <span>🎨</span>
+          <span data-i18n="visuals_title">الهوية البصرية للمتجر</span>
         </div>
-        <div class="signals-body" id="signals-body">
-          <div class="signals-list" id="signals-list">
-            <!-- Populated by JS -->
+        <div class="visuals-body">
+          <div class="visual-section">
+            <div class="visual-label" data-i18n="colors_label">الألوان المستخدمة</div>
+            <div class="color-palette" id="color-palette">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+          <div class="visual-section">
+            <div class="visual-label" data-i18n="fonts_label">الخطوط المكتشفة</div>
+            <div class="font-list" id="font-list">
+              <!-- Populated by JS -->
+            </div>
           </div>
         </div>
       </div>
 
+      <!-- Tech Stack Card -->
+      <div class="tech-card fade-in fade-in-delay-1" id="tech-card">
+        <div class="tech-header">
+          <span>🛠️</span>
+          <span data-i18n="tech_title">أدوات التسويق والتقنية</span>
+        </div>
+        <div class="tech-body" id="tech-list">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+
+      <!-- Marketing Card -->
+      <div class="marketing-card fade-in fade-in-delay-3">
+        <div class="marketing-content">
+          <div class="marketing-text" data-i18n="marketing_text">هل تريد تصميم متجر احترافي؟</div>
+          <a href="https://wa.me/201284867755?text=السلام%20عليكم%20اريد%20الاستفسار%20عن%20تصميم%20متجر" target="_blank" class="btn btn-whatsapp">
+            <span class="wa-icon">💬</span>
+            <span data-i18n="btn_whatsapp">اطلب تصميم متجرك الآن</span>
+          </a>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── Search State ── -->
+    <div class="main-content hidden" id="state-search">
+      <div class="search-box-wrap fade-in">
+        <div class="search-input-group">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="search-input" placeholder="ابحث عن اسم الثيم أو ID..." data-i18n-placeholder="search_placeholder" />
+        </div>
+        <div class="search-filters">
+          <button class="filter-btn active" data-filter="all" data-i18n="filter_all">الكل</button>
+          <button class="filter-btn" data-filter="Salla" data-i18n="filter_salla">سلة</button>
+          <button class="filter-btn" data-filter="Zid" data-i18n="filter_zid">زد</button>
+        </div>
+      </div>
+
+      <div class="search-results" id="search-results">
+        <!-- Populated by JS -->
+      </div>
+
+      <div class="search-empty hidden" id="search-empty">
+        <div class="state-icon">🔎</div>
+        <div class="state-desc" data-i18n="search_empty">لم يتم العثور على ثيمات تطابق بحثك.</div>
+      </div>
+    </div>
+
+    <!-- ── History State ── -->
+    <div class="main-content hidden" id="state-history">
+      <div class="history-header fade-in">
+        <div class="history-title-wrap">
+          <span class="history-icon">🕒</span>
+          <span class="history-title" data-i18n="history_title">المتاجر المحللة مؤخراً</span>
+        </div>
+        <button class="btn btn-icon-red" id="btn-clear-history" title="Clear History">🗑️</button>
+      </div>
+
+      <div class="history-list" id="history-list">
+        <!-- Populated by JS -->
+      </div>
+
+      <div class="history-empty hidden" id="history-empty">
+        <div class="state-icon">📋</div>
+        <div class="state-desc" data-i18n="history_empty">لا توجد متاجر في السجل حالياً.</div>
+      </div>
     </div>
 
     <!-- ── Footer / Rescan ── -->
     <div class="footer" id="main-footer">
       <button class="btn btn-rescan" id="btn-rescan">
-        <span>🔄</span>
-        إعادة الفحص
+        <span class="icon">🔄</span>
+        <span data-i18n="btn_rescan">إعادة الفحص</span>
       </button>
-      <div class="footer-url" id="footer-url"></div>
     </div>
+
+    <!-- ── Bottom Navigation ── -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-tab="home">
+        <span class="nav-icon">🏠</span>
+        <span class="nav-label" data-i18n="nav_home">الرئيسية</span>
+      </button>
+      <button class="nav-item" data-tab="themes">
+        <span class="nav-icon">🎨</span>
+        <span class="nav-label" data-i18n="nav_themes">الثيمات</span>
+      </button>
+      <button class="nav-item" data-tab="history">
+        <span class="nav-icon">🕒</span>
+        <span class="nav-label" data-i18n="nav_history">السجل</span>
+      </button>
+    </nav>
 
   </div>
 
