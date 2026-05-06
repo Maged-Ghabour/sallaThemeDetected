@@ -120,9 +120,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       if (tabs[0]) {
         const activeTab = tabs[0];
         
+<<<<<<< HEAD
         // 1. Fetch latest config and THEN proceed
         fetchRemoteConfig().then((remote) => {
           const config = remote || DEFAULT_CONFIG;
+=======
+        // 1. Get latest config (Fetch fresh from cloud first for manual scan)
+        fetchRemoteConfig().then((remote) => {
+>>>>>>> 09bed70f75dd53235890a6887320243a1719bbdd
 
           // 2. Ping content script
           chrome.tabs.sendMessage(activeTab.id, { action: "ping" }, (pingRes) => {
