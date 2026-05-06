@@ -398,6 +398,16 @@
       if (mName) themeName = mName[1];
     }
 
+    // 4. Class Search (New Fallback)
+    if (!themeName) {
+       const bodyClasses = document.body.className;
+       const mClass = bodyClasses.match(/([a-z0-9-]+)-theme/i) || bodyClasses.match(/theme-([a-z0-9-]+)/i);
+       if (mClass && mClass[1] && !genericNames.includes(mClass[1].toLowerCase())) {
+          themeName = mClass[1];
+       }
+    }
+
+
     // ID Mapping (Strongest override)
     const mapping = platform === "Salla" ? SALLA_THEME_IDS : ZID_THEME_IDS;
     console.log(`[Detector] Checking mapping for ID: ${themeId} in platform: ${platform}`);
@@ -548,33 +558,14 @@
           "result": result
         });
 
-        // Direct Tracking Fallback from Content Script
-        const theme = result.theme || {};
-        if (theme.name && theme.name !== "Unknown") {
-          const trackData = {
-            platform: result.platform,
-            theme_id: theme.themeId ? String(theme.themeId) : null,
-            theme_name: theme.name,
-            domain: window.location.hostname
-          };
-          
-          // Use the dynamic URL or fallback to hardcoded
-          fetch("https://affiliate.iqla3.com/api/track", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Accept": "application/json",
-              "X-Extension-Key": "salla-ext-2024-maged-secret-key"
-            },
-            body: JSON.stringify(trackData)
-          }).catch(() => {});
-        }
+        // Direct Tracking Fallback from Content Script (REMOVED - Use Background Script only for consistency)
       } catch (e) { }
 
       if (!isSilent) {
         showToast(result, remote);
       }
     }
+
 
 
     return result;

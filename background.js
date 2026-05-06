@@ -128,9 +128,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 domain: new URL(tabUrl).hostname
               };
               const apiBase = CONFIG_URL.replace('/api/config', '');
-              const trackUrl = apiBase + "/api/track";
+              const trackUrl = apiBase + "/api/track?key=salla-ext-2024-maged-secret-key";
 
               console.log("[Auto-Track] Sending data to:", trackUrl, "for:", trackData.domain);
+
               fetch(trackUrl, {
                 method: "POST",
                 headers: {
@@ -182,8 +183,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         domain: activeTab.url ? new URL(activeTab.url).hostname : null
                       };
                       const apiBase = CONFIG_URL.replace('/api/config', '');
-                      const trackUrl = apiBase + "/api/track";
+                      const trackUrl = apiBase + "/api/track?key=salla-ext-2024-maged-secret-key";
                       fetch(trackUrl, {
+
                         method: "POST",
                         headers: {
                           "Content-Type": "application/json",
