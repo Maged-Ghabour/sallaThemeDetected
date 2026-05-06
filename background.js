@@ -111,9 +111,37 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "updateBadge") {
     if (tabId) {
       tabResults[tabId] = message.result;
+      
+      // Automatic Tracking (Bypasses manual popup interaction)
+      const result = message.result;
+      if (result && result.platform && result.platform !== "Unknown") {
+        const theme = result.theme || {};
+        if (theme.name && theme.name !== "Unknown") {
+          try {
+            const trackData = {
+              platform: result.platform,
+              theme_id: theme.themeId ? String(theme.themeId) : null,
+              theme_name: theme.name,
+              domain: sender.tab.url ? new URL(sender.tab.url).hostname : null
+            };
+            if (trackData.domain) {
+              fetch("https://affiliate.iqla3.com/api/track", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "Accept": "application/json",
+                  "X-Extension-Key": "salla-ext-2024-maged-secret-key"
+                },
+                body: JSON.stringify(trackData)
+              }).catch(err => console.warn("Auto-tracking error:", err));
+            }
+          } catch (e) { console.warn("Auto-track extraction error:", e); }
+        }
+      }
     }
     return true;
   }
+
 
   if (message.action === "runDetection") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
