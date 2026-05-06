@@ -118,13 +118,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const theme = result.theme || {};
         if (theme.name && theme.name !== "Unknown") {
           try {
-            const trackData = {
-              platform: result.platform,
-              theme_id: theme.themeId ? String(theme.themeId) : null,
-              theme_name: theme.name,
-              domain: sender.tab.url ? new URL(sender.tab.url).hostname : null
-            };
-            if (trackData.domain) {
+            // Priority: result.url (from content.js) > sender.tab.url > sender.url
+            const tabUrl = result.url || (sender.tab ? sender.tab.url : null);
+            if (tabUrl && tabUrl.startsWith('http')) {
+              const trackData = {
+                platform: result.platform,
+                theme_id: theme.themeId ? String(theme.themeId) : null,
+                theme_name: theme.name,
+                domain: new URL(tabUrl).hostname
+              };
+              console.log("[Auto-Track] Sending data for:", trackData.domain);
               fetch("https://affiliate.iqla3.com/api/track", {
                 method: "POST",
                 headers: {
@@ -133,11 +136,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                   "X-Extension-Key": "salla-ext-2024-maged-secret-key"
                 },
                 body: JSON.stringify(trackData)
-              }).catch(err => console.warn("Auto-tracking error:", err));
+              }).then(r => r.json()).then(d => console.log("[Auto-Track] Success:", d))
+                .catch(err => console.warn("[Auto-Track] Error:", err));
             }
           } catch (e) { console.warn("Auto-track extraction error:", e); }
         }
       }
+
     }
     return true;
   }
