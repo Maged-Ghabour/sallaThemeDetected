@@ -127,8 +127,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 theme_name: theme.name,
                 domain: new URL(tabUrl).hostname
               };
-              console.log("[Auto-Track] Sending data for:", trackData.domain);
-              fetch("https://affiliate.iqla3.com/api/track", {
+              const apiBase = CONFIG_URL.replace('/api/config', '');
+              const trackUrl = apiBase + "/api/track";
+
+              console.log("[Auto-Track] Sending data to:", trackUrl, "for:", trackData.domain);
+              fetch(trackUrl, {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -138,6 +141,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 body: JSON.stringify(trackData)
               }).then(r => r.json()).then(d => console.log("[Auto-Track] Success:", d))
                 .catch(err => console.warn("[Auto-Track] Error:", err));
+
             }
           } catch (e) { console.warn("Auto-track extraction error:", e); }
         }
@@ -177,7 +181,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         theme_name: response.theme ? response.theme.name : null,
                         domain: activeTab.url ? new URL(activeTab.url).hostname : null
                       };
-                      fetch("https://affiliate.iqla3.com/api/track", {
+                      const apiBase = CONFIG_URL.replace('/api/config', '');
+                      const trackUrl = apiBase + "/api/track";
+                      fetch(trackUrl, {
                         method: "POST",
                         headers: {
                           "Content-Type": "application/json",
@@ -186,6 +192,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                         },
                         body: JSON.stringify(trackData)
                       }).catch(err => console.warn("Tracking error:", err));
+
                     } catch (e) { console.warn(e); }
                   }
 
