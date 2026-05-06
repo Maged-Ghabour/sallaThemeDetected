@@ -453,7 +453,6 @@ function renderResult(data) {
     if (waNum) {
       const waBtn = document.querySelector(".btn-whatsapp");
       if (waBtn) {
-<<<<<<< HEAD
         const msg = encodeURIComponent(currentLang === 'ar' ? 'السلام عليكم، أريد الاستفسار عن تصميم متجر' : 'Hello, I would like to inquire about store design');
         waBtn.href = `https://wa.me/${waNum.replace('+', '')}?text=${msg}`;
       }
@@ -468,9 +467,6 @@ function renderResult(data) {
         specialOfferEl.classList.remove('hidden');
       } else {
         specialOfferEl.classList.add('hidden');
-=======
-        waBtn.href = `https://wa.me/${String(remote.social.whatsapp || "").replace('+', '')}?text=${encodeURIComponent(currentLang === 'ar' ? 'استفسار من الإضافة' : 'Inquiry from Extension')}`;
->>>>>>> 09bed70f75dd53235890a6887320243a1719bbdd
       }
     }
   });
