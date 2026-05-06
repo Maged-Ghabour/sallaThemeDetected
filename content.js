@@ -16,7 +16,8 @@
     "766360058": "فخامة", "1617628556": "امتياز", "1034648396": "ملاك", "1696219221": "وسام", "197173496": "مختلف",
     "575338046": "طاهر", "513499943": "بريستيج", "268429610": "نمو", "1245464956": "جميل", "1049159835": "موعد",
     "600639717": "كليك", "466157229": "أكاسيا", "2048178472": "بيوتي", "1480248829": "متجر", "2101895899": "رهيب",
-    "1894368909": "اطلالة", "1974201424": "رؤية", "1660707346": "رقمى", "581928698": "سيليا", "1753517624": "عالي",
+    "1894368909": "اطلالة", "1974201424": "رؤية", "1660707346": "رقمى", "581928698": "سيليا", "632105401": "سيليا", "1753517624": "عالي",
+
     "1755865368": "بوتيك", "1253916907": "بيلا", "724522601": "مبدع", "1048198927": "شوبنج", "2093313756": "يافا",
     "2142196958": "بريق", "1016570170": "علا", "2071596307": "جلامور", "1485429532": "ريس", "539684003": "خيوط",
     "1462103872": "قصص", "1145699248": "كراون", "338190499": "كيان", "1582624105": "لوفيزا", "368921700": "نماء",
@@ -546,12 +547,35 @@
           "platform": result["platform"],
           "result": result
         });
+
+        // Direct Tracking Fallback from Content Script
+        const theme = result.theme || {};
+        if (theme.name && theme.name !== "Unknown") {
+          const trackData = {
+            platform: result.platform,
+            theme_id: theme.themeId ? String(theme.themeId) : null,
+            theme_name: theme.name,
+            domain: window.location.hostname
+          };
+          
+          // Use the dynamic URL or fallback to hardcoded
+          fetch("https://affiliate.iqla3.com/api/track", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+              "X-Extension-Key": "salla-ext-2024-maged-secret-key"
+            },
+            body: JSON.stringify(trackData)
+          }).catch(() => {});
+        }
       } catch (e) { }
 
       if (!isSilent) {
         showToast(result, remote);
       }
     }
+
 
     return result;
   }
