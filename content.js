@@ -589,6 +589,8 @@
 
     const style = document.createElement("style");
     style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;700;800&display=swap');
+
       #salla-detector-mini {
         all: initial;
         position: fixed;
@@ -602,7 +604,7 @@
         border-radius: 24px !important;
         box-shadow: 0 20px 50px rgba(0,0,0,0.5) !important;
         border: 1px solid rgba(255,255,255,0.1) !important;
-        font-family: 'Tajawal', sans-serif !important;
+        font-family: 'Cairo', sans-serif !important;
         direction: rtl !important;
         padding: 20px !important;
         display: flex !important;

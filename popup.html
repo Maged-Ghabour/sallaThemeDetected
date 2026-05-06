@@ -25,6 +25,13 @@
       </div>
     </header>
 
+    <!-- ── Alert Banner (Dynamic from Settings) ── -->
+    <div class="alert-banner hidden" id="alert-banner">
+      <span class="alert-icon">📢</span>
+      <span class="alert-text" id="alert-text"></span>
+      <button class="alert-close" id="alert-close">✕</button>
+    </div>
+
     <!-- ── Loading State ── -->
     <div class="main-content" id="state-loading">
       <div class="spinner-wrap">
@@ -138,6 +145,8 @@
       <!-- Marketing Card -->
       <div class="marketing-card fade-in fade-in-delay-3">
         <div class="marketing-content">
+          <!-- Special Offer Text (Dynamic) -->
+          <div class="special-offer-text hidden" id="special-offer-text"></div>
           <div class="marketing-text" data-i18n="marketing_text">هل تريد تصميم متجر احترافي؟</div>
           <a href="https://wa.me/201284867755?text=السلام%20عليكم%20اريد%20الاستفسار%20عن%20تصميم%20متجر" target="_blank" class="btn btn-whatsapp">
             <span class="wa-icon">💬</span>
@@ -169,6 +178,39 @@
       <div class="search-empty hidden" id="search-empty">
         <div class="state-icon">🔎</div>
         <div class="state-desc" data-i18n="search_empty">لم يتم العثور على ثيمات تطابق بحثك.</div>
+      </div>
+    </div>
+
+    <!-- ── Links / Social State ── -->
+    <div class="main-content hidden" id="state-links">
+      <div class="social-links-page fade-in" id="social-links-content">
+
+        <!-- Support Card (Buy Me a Coffee) -->
+        <div id="social-coffee-wrap" class="hidden">
+          <a href="#" target="_blank" class="social-support-card" id="social-coffee-link">
+            <div class="social-support-icon">☕</div>
+            <div class="social-support-info">
+              <div class="social-support-title">هل أعجبتك الإضافة؟</div>
+              <div class="social-support-desc">ادعم المطور بشراء كوب قهوة — يساعدنا على الاستمرار!</div>
+            </div>
+            <span style="color:var(--text-dim); font-size:18px">⮕</span>
+          </a>
+        </div>
+
+        <!-- Social Grid -->
+        <div>
+          <div class="social-section-title">وسائل التواصل</div>
+          <div class="social-grid" id="social-grid">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div class="search-empty hidden" id="social-empty">
+          <div class="state-icon">🔗</div>
+          <div class="state-desc">لا توجد روابط متاحة حالياً.</div>
+        </div>
+
       </div>
     </div>
 
@@ -213,6 +255,10 @@
       <button class="nav-item" data-tab="history">
         <span class="nav-icon">🕒</span>
         <span class="nav-label" data-i18n="nav_history">السجل</span>
+      </button>
+      <button class="nav-item" data-tab="links">
+        <span class="nav-icon">🔗</span>
+        <span class="nav-label">روابط</span>
       </button>
     </nav>
 

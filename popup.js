@@ -37,6 +37,7 @@ const stateHistory  = document.getElementById("state-history");
 const historyList   = document.getElementById("history-list");
 const historyEmpty  = document.getElementById("history-empty");
 const btnClearHistory = document.getElementById("btn-clear-history");
+const stateLinks    = document.getElementById("state-links");
 const navItems      = document.querySelectorAll(".nav-item");
 
 // ── State ────────────────────────────────────────────────────
@@ -348,7 +349,7 @@ const PLATFORM_META = {
 
 // ── Helpers ───────────────────────────────────────────────────
 function showOnly(el) {
-  [stateLoading, stateError, stateResult, stateSearch, stateHistory].forEach((s) => s.classList.add("hidden"));
+  [stateLoading, stateError, stateResult, stateSearch, stateHistory, stateLinks].forEach((s) => s && s.classList.add("hidden"));
   el.classList.remove("hidden");
 }
 
@@ -445,11 +446,25 @@ function renderResult(data) {
       if (discountRow) discountRow.classList.add("hidden");
     }
     
-    // Update Whatsapp and Marketing in Popup if needed
-    if (remote.social && remote.social.whatsapp) {
+    // Update Whatsapp link dynamically
+    const waNum = (remote.social && remote.social.whatsapp) || (remote.marketing && remote.marketing.whatsapp) || '';
+    if (waNum) {
       const waBtn = document.querySelector(".btn-whatsapp");
       if (waBtn) {
-        waBtn.href = `https://wa.me/${remote.social.whatsapp.replace('+', '')}?text=${encodeURIComponent(currentLang === 'ar' ? 'استفسار من الإضافة' : 'Inquiry from Extension')}`;
+        const msg = encodeURIComponent(currentLang === 'ar' ? 'السلام عليكم، أريد الاستفسار عن تصميم متجر' : 'Hello, I would like to inquire about store design');
+        waBtn.href = `https://wa.me/${waNum.replace('+', '')}?text=${msg}`;
+      }
+    }
+
+    // Show Special Offer text if set
+    const specialOffer = remote.marketing && remote.marketing.specialOffer;
+    const specialOfferEl = document.getElementById('special-offer-text');
+    if (specialOfferEl) {
+      if (specialOffer && specialOffer.trim()) {
+        specialOfferEl.textContent = specialOffer;
+        specialOfferEl.classList.remove('hidden');
+      } else {
+        specialOfferEl.classList.add('hidden');
       }
     }
   });
@@ -621,6 +636,9 @@ function switchTab(tabId) {
   } else if (tabId === "history") {
     showOnly(stateHistory);
     renderHistory();
+  } else if (tabId === "links") {
+    showOnly(stateLinks);
+    renderLinks();
   }
 }
 
@@ -788,6 +806,62 @@ function clearHistory() {
   }
 }
 
+// ── Links / Social Tab ─────────────────────────────────
+function renderLinks() {
+  chrome.storage.local.get('remoteConfig', (data) => {
+    const social = (data.remoteConfig || {}).social || {};
+
+    const SOCIAL_CONFIG = [
+      { key: 'whatsapp',  label: 'واتساب',    icon: '💬', cls: 'whatsapp',  prefix: 'https://wa.me/' },
+      { key: 'twitter',   label: 'تويتر/X',   icon: '🐦', cls: 'twitter',   prefix: '' },
+      { key: 'telegram',  label: 'تيليجرام',  icon: '✈️', cls: 'telegram',  prefix: '' },
+      { key: 'instagram', label: 'انستغرام',  icon: '📸', cls: 'instagram', prefix: '' },
+      { key: 'tiktok',    label: 'تيكتوك',    icon: '🎥', cls: 'tiktok',    prefix: '' },
+      { key: 'youtube',   label: 'يوتيوب',    icon: '🎦', cls: 'youtube',   prefix: '' },
+      { key: 'website',   label: 'موقعنا',    icon: '🌐', cls: 'website',   prefix: '' },
+    ];
+
+    // Coffee card
+    const coffeeWrap = document.getElementById('social-coffee-wrap');
+    const coffeeLink = document.getElementById('social-coffee-link');
+    if (coffeeWrap && social.coffee && social.coffee.trim()) {
+      coffeeLink.href = social.coffee;
+      coffeeWrap.classList.remove('hidden');
+    } else if (coffeeWrap) {
+      coffeeWrap.classList.add('hidden');
+    }
+
+    // Social grid
+    const grid = document.getElementById('social-grid');
+    const emptyEl = document.getElementById('social-empty');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+    let count = 0;
+
+    SOCIAL_CONFIG.forEach(({ key, label, icon, cls, prefix }) => {
+      const val = social[key];
+      if (!val || !val.trim()) return;
+
+      const href = prefix && !val.startsWith('http') ? prefix + val.replace('+', '') : val;
+      const btn = document.createElement('a');
+      btn.href = href;
+      btn.target = '_blank';
+      btn.className = `social-btn ${cls} fade-in`;
+      btn.innerHTML = `
+        <div class="social-btn-icon">${icon}</div>
+        <div class="social-btn-label">${label}</div>
+      `;
+      grid.appendChild(btn);
+      count++;
+    });
+
+    if (emptyEl) {
+      emptyEl.classList.toggle('hidden', count > 0 || !!(social.coffee && social.coffee.trim()));
+    }
+  });
+}
+
 navItems.forEach(item => {
   item.addEventListener("click", () => {
     switchTab(item.getAttribute("data-tab"));
@@ -797,6 +871,57 @@ navItems.forEach(item => {
 btnClearHistory.addEventListener("click", clearHistory);
 
 // ── Init ─────────────────────────────────────────────────────
+// ── Remote Settings Loader ───────────────────────────────────
+function loadRemoteSettings() {
+  chrome.storage.local.get('remoteConfig', (data) => {
+    const remote = data.remoteConfig || {};
+    const marketing = remote.marketing || {};
+
+    // 1. Show alert_message banner if set
+    const alertMsg = marketing.alertMessage || '';
+    const alertBanner = document.getElementById('alert-banner');
+    const alertText   = document.getElementById('alert-text');
+    const alertClose  = document.getElementById('alert-close');
+
+    if (alertBanner && alertText && alertMsg.trim()) {
+      // Check if user already dismissed this specific message
+      chrome.storage.local.get('dismissedAlert', (res) => {
+        if (res.dismissedAlert !== alertMsg) {
+          alertText.textContent = alertMsg;
+          alertBanner.classList.remove('hidden');
+          alertClose.addEventListener('click', () => {
+            alertBanner.classList.add('hidden');
+            // Remember dismissed message so it doesn't show again
+            chrome.storage.local.set({ dismissedAlert: alertMsg });
+          });
+        }
+      });
+    }
+
+    // 2. Show special_offer in marketing card
+    const specialOffer = marketing.specialOffer || '';
+    const specialOfferEl = document.getElementById('special-offer-text');
+    if (specialOfferEl) {
+      if (specialOffer.trim()) {
+        specialOfferEl.textContent = specialOffer;
+        specialOfferEl.classList.remove('hidden');
+      } else {
+        specialOfferEl.classList.add('hidden');
+      }
+    }
+
+    // 3. Update WhatsApp button link
+    const waNum = marketing.whatsapp || (remote.social && remote.social.whatsapp) || '';
+    if (waNum) {
+      const waBtn = document.querySelector('.btn-whatsapp');
+      if (waBtn) {
+        const msg = encodeURIComponent('السلام عليكم، أريد الاستفسار عن تصميم متجر');
+        waBtn.href = `https://wa.me/${waNum.replace('+', '')}?text=${msg}`;
+      }
+    }
+  });
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   // Load language preference
   chrome.storage.local.get("selectedLang", (data) => {
@@ -805,7 +930,8 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       setLanguage("ar");
     }
-
+    // Load remote settings (alerts, special offers, etc.)
+    loadRemoteSettings();
     // Always run detection on startup to get the correct tab-specific result
     runDetection();
   });
