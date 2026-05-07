@@ -96,16 +96,6 @@
         .step-num { background: var(--p-indigo); color: #fff; border-radius: 50%; width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
         .divider { display: flex; align-items: center; gap: 10px; color: var(--text-dim); font-size: 13px; }
         .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
-        .bookmarklet-box { background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.25); border-radius: 12px; padding: 15px; }
-        .bookmarklet-title { font-size: 14px; color: var(--text-main); font-weight: 700; margin-bottom: 8px; }
-        .bookmarklet-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
-        .bookmarklet-link {
-            display: inline-block; background: linear-gradient(135deg, var(--p-indigo), var(--p-violet));
-            color: #fff; text-decoration: none; padding: 10px 20px; border-radius: 10px;
-            font-weight: 700; font-size: 14px; cursor: grab; user-select: none;
-            border: 2px dashed rgba(255,255,255,0.3); transition: 0.3s;
-        }
-        .bookmarklet-link:hover { transform: scale(1.02); box-shadow: 0 6px 20px rgba(99,102,241,0.4); }
         .btn-open-store {
             display: inline-flex; align-items: center; justify-content: center; gap: 8px;
             background: linear-gradient(135deg, var(--p-indigo), var(--p-violet));
@@ -205,31 +195,6 @@
     const btnRetry = document.getElementById('btn-retry');
 
     let currentUrl = '';
-
-    // Build bookmarklet code
-    const bookmarkletCode = `javascript:(function(){
-var ids={"1247874246":"\u0631\u0627\u0626\u062f","1298199463":"\u0631\u0627\u0626\u062f","568597563":"\u0646\u0645\u0648","2038173539":"\u0648\u0627\u062b\u0642","404046066":"\u0641\u0631\u064a\u062f","392563753":"\u0632\u064a\u064a\u0646","766360058":"\u0641\u062e\u0627\u0645\u0629","1617628556":"\u0627\u0645\u062a\u064a\u0627\u0632","1034648396":"\u0645\u0644\u0627\u0643","1696219221":"\u0648\u0633\u0627\u0645","197173496":"\u0645\u062e\u062a\u0644\u0641","575338046":"\u0637\u0627\u0647\u0631","513499943":"\u0628\u0631\u064a\u0633\u062a\u064a\u062c","1245464956":"\u062c\u0645\u064a\u0644","1049159835":"\u0645\u0648\u0639\u062f","600639717":"\u0643\u0644\u064a\u0643","2048178472":"\u0628\u064a\u0648\u062a\u064a","1480248829":"\u0645\u062a\u062c\u0631","2101895899":"\u0631\u0647\u064a\u0628","1974201424":"\u0631\u0624\u064a\u0629","1660707346":"\u0631\u0642\u0645\u0649","1753517624":"\u0639\u0627\u0644\u064a","1755865368":"\u0628\u0648\u062a\u064a\u0643","724522601":"\u0645\u0628\u062f\u0639","2142196958":"\u0628\u0631\u064a\u0642","1016570170":"\u0639\u0644\u0627","1082561676":"\u0623\u064a\u0642\u0648\u0646\u0629","1111293706":"\u0623\u0635\u064a\u0644","1467724464":"\u0631\u0648\u0646\u0642","965120482":"\u0648\u0647\u062c","1663988716":"\u0644\u0627\u0641\u0646\u062f\u0631","1925842409":"\u0634\u0647\u062f","892216257":"\u0644\u064a\u0627\u0644\u064a","5541564":"\u0643\u0644\u064a\u0643","1130931637":"\u0645\u0644\u0627\u0643"};
-var h=document.documentElement.innerHTML;
-var tid=null,name="Unknown";
-var m=h.match(/themes\\/(\\d+)\\//i)||h.match(/theme[_-](\\d+)\\.css/i);
-if(m)tid=m[1];
-if(!tid){var m2=h.match(/"(?:theme_id|themeId)"[^:]*:(\\d{5,})/i);if(m2)tid=m2[1];}
-if(!tid){for(var id in ids){if(id.length>5&&h.indexOf(id)>-1){tid=id;break;}}}
-if(tid&&ids[tid])name=ids[tid];
-var platform="Salla";
-if(h.indexOf("zid.store")>-1)platform="Zid";
-fetch("https://affiliate.iqla3.com/api/track",{method:"POST",headers:{"Content-Type":"application/json","X-Extension-Key":"salla-ext-2024-maged-secret-key"},body:JSON.stringify({platform:platform,theme_name:name,theme_id:tid,domain:location.hostname})}).then(function(){alert("✅ تم الكشف!\\nالمنصة: "+platform+"\\nالثيم: "+name+"\\nيمكنك العودة للموقع الآن");}).catch(function(){alert("الثيم: "+name);});
-})();`;
-
-    // Set bookmarklet href
-    const bookmarkletBtn = document.getElementById('bookmarklet-btn');
-    if (bookmarkletBtn) {
-        bookmarkletBtn.href = bookmarkletCode;
-        bookmarkletBtn.addEventListener('click', function(e) {
-            e.preventDefault();
-            alert('📌 اسحب هذا الزر إلى شريط الإشارات المرجعية في متصفحك\n\n(لا تضغط عليه هنا، بل اسحبه!)');
-        });
-    }
 
 
     function showResult(platform, theme, cached = false) {

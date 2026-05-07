@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use App\Models\Theme;
 use Exception;
 
 class StoreDetectorService
@@ -139,23 +140,49 @@ class StoreDetectorService
 
         $debug['platform'] = $platform;
 
-        // 2. Load Theme Dictionary
-        $themeMap = $this->getSallaThemeIds();
-
-        // 3. Exhaustive Search for Theme ID
-        $foundNumbers = [];
-        if (preg_match_all('/(\d{8,15})/', $html, $matches)) {
-            $foundNumbers = array_unique($matches[1]);
-            foreach ($foundNumbers as $num) {
-                if (isset($themeMap[(string)$num]) || isset($themeMap[(int)$num])) {
-                    $themeId = $num;
-                    $theme = $themeMap[$num];
-                    $debug['found_by'] = 'exhaustive_id_match';
-                    break;
-                }
+        // 2. Extract Theme ID from Asset URLs (Accurate Detection)
+        if ($platform === 'Salla') {
+            if (preg_match('/cdn\.assets\.salla\.network\/themes\/(\d+)\//', $html, $matches)) {
+                $themeId = $matches[1];
+                $debug['found_by'] = 'salla_asset_url';
+            }
+        } elseif ($platform === 'Zid') {
+            if (preg_match('/cdn\.zid\.sa\/themes\/([^\/]+)\//', $html, $matches)) {
+                $themeId = $matches[1];
+                $debug['found_by'] = 'zid_asset_url';
             }
         }
-        $debug['all_numbers_found'] = array_slice($foundNumbers, 0, 10);
+
+        // 3. Database Lookup for Theme Name
+        if ($themeId) {
+            $dbTheme = Theme::where('external_id', $themeId)->first();
+            if ($dbTheme) {
+                $theme = $dbTheme->name;
+                $debug['found_in_db'] = true;
+            }
+        }
+
+        // 4. Fallback: Load Theme Dictionary & Exhaustive Search (if DB lookup failed or ID not found in assets)
+        if ($theme === 'Unknown') {
+            $themeMap = $this->getSallaThemeIds();
+            
+            // Search for ID in assets if not found by specific regex above
+            if (!$themeId) {
+                if (preg_match_all('/(\d{8,15})/', $html, $matches)) {
+                    $foundNumbers = array_unique($matches[1]);
+                    foreach ($foundNumbers as $num) {
+                        if (isset($themeMap[(string)$num]) || isset($themeMap[(int)$num])) {
+                            $themeId = $num;
+                            $theme = $themeMap[$num];
+                            $debug['found_by'] = 'exhaustive_id_match';
+                            break;
+                        }
+                    }
+                }
+            } else if (isset($themeMap[$themeId])) {
+                $theme = $themeMap[$themeId];
+            }
+        }
 
         // Special check for Selia (Common in Boh Perfume)
         if ($theme === 'Unknown' && str_contains($html, '581928698')) {
@@ -164,10 +191,9 @@ class StoreDetectorService
             $debug['found_by'] = 'manual_selia_check';
         }
 
-
         $debug['detected_id'] = $themeId;
         $debug['detected_name'] = $theme;
-        $debug['service_version'] = '1.2.3_FINAL';
+        $debug['service_version'] = '1.2.4_DYNAMIC';
 
         return [
             'success' => true,
