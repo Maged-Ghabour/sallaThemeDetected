@@ -198,36 +198,49 @@ class StoreDetectorService
         $debug['platform'] = $platform;
         $debug['theme_id'] = $themeId;
 
-        // ── Step 3: Database lookup ────────────────────────────────────────────
+        // ── Step 3: Database lookup with Hardcoded Fallback ───────────────────
         if ($themeId) {
             try {
+                // 3a. Check DB
                 $dbTheme = Theme::where('external_id', $themeId)->first();
 
                 if ($dbTheme) {
                     $theme = $dbTheme->name;
                     $debug['steps'][]  = "db_lookup: FOUND theme_id=$themeId => name=$theme";
                     $debug['db_hit']   = true;
-                    $debug['db_theme'] = ['id' => $dbTheme->id, 'external_id' => $dbTheme->external_id, 'name' => $dbTheme->name];
                 } else {
-                    $debug['steps'][] = "db_lookup: NOT FOUND for theme_id=$themeId — check your themes table";
+                    $debug['steps'][] = "db_lookup: NOT FOUND in DB for theme_id=$themeId";
                     $debug['db_hit']  = false;
 
-                    // Show sample of what IS in the DB to help debug
-                    $sampleIds = Theme::limit(5)->pluck('external_id')->toArray();
-                    $debug['db_sample_ids'] = $sampleIds;
-                    $debug['db_count']      = Theme::count();
+                    // 3b. Hardcoded Fallback for common themes (just in case)
+                    $fallbacks = [
+                        '1247874246' => 'رائد',
+                        '581928698'  => 'سيليا',
+                        '632105401'  => 'سيليا',
+                        '1155479931' => 'زينة',
+                    ];
+
+                    if (isset($fallbacks[(string)$themeId])) {
+                        $theme = $fallbacks[(string)$themeId];
+                        $debug['steps'][] = "hardcoded_fallback: FOUND theme_id=$themeId => name=$theme";
+                    } else {
+                        // 3c. If still unknown, show the ID as the name
+                        $theme = "ثيم غير معروف (ID: $themeId)";
+                        $debug['steps'][] = "no_name_found: returning ID as name";
+                    }
                 }
             } catch (Exception $e) {
                 $debug['steps'][]    = 'db_error: ' . $e->getMessage();
-                $debug['db_error']   = $e->getMessage();
+                $theme = "خطأ في البحث (ID: $themeId)";
             }
         } else {
-            $debug['steps'][] = 'db_lookup: SKIPPED — no theme_id extracted (Salla keyword-only detection)';
+            $debug['steps'][] = 'db_lookup: SKIPPED — no theme_id extracted';
         }
 
         // ── Step 4: Final result ───────────────────────────────────────────────
         $debug['detected_id']   = $themeId;
         $debug['detected_name'] = $theme;
+        $debug['service_version'] = '3.1.0_FLEXIBLE';
 
         return [
             'success'    => true,
