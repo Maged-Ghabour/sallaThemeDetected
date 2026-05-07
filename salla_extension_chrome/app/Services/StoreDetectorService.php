@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use App\Models\Theme;
 use Exception;
 
@@ -10,84 +11,127 @@ class StoreDetectorService
 {
     public function detect(string $url): array
     {
-        // Ensure URL has scheme
+        $debug = [
+            'input_url'       => $url,
+            'service_version' => '3.0.0_DB_ONLY',
+            'steps'           => [],
+        ];
+
+        // ── Step 0: Normalize URL ──────────────────────────────────────────────
         if (!preg_match('~^(?:f|ht)tps?://~i', $url)) {
-            $url = "https://" . $url;
+            $url = 'https://' . $url;
         }
+        $debug['normalized_url'] = $url;
 
-        // Try direct fetch
-        $html = $this->fetchDirect($url);
+        // ── Step 1: Fetch HTML ─────────────────────────────────────────────────
+        $html = null;
+        $fetchMethod = null;
 
-        // Fallback to Google Cache
-        if (!$html || $this->isCloudflareChallenge($html)) {
-            $html = $this->fetchFromGoogleCache($url);
-        }
+        // 1a. Direct fetch
+        [$html, $fetchError] = $this->fetchDirect($url);
+        if ($html && !$this->isCloudflareChallenge($html)) {
+            $fetchMethod = 'direct';
+        } else {
+            $debug['steps'][] = 'direct_fetch_failed: ' . ($fetchError ?? ($html ? 'cloudflare_challenge' : 'empty_body'));
 
-        // Fallback to Wayback Machine
-        if (!$html || $this->isCloudflareChallenge($html)) {
-            $html = $this->fetchFromWayback($url);
+            // 1b. Google Cache
+            [$html, $fetchError] = $this->fetchFromGoogleCache($url);
+            if ($html && !$this->isCloudflareChallenge($html)) {
+                $fetchMethod = 'google_cache';
+            } else {
+                $debug['steps'][] = 'google_cache_failed: ' . ($fetchError ?? ($html ? 'cloudflare_challenge' : 'empty_body'));
+
+                // 1c. Wayback Machine
+                [$html, $fetchError] = $this->fetchFromWayback($url);
+                if ($html) {
+                    $fetchMethod = 'wayback_machine';
+                } else {
+                    $debug['steps'][] = 'wayback_failed: ' . ($fetchError ?? 'empty_body');
+                }
+            }
         }
 
         if (!$html) {
             return [
                 'success' => false,
-                'message' => 'تعذر الوصول إلى الموقع. تأكد من صحة الرابط.'
+                'message' => 'تعذر الوصول إلى الموقع. تأكد من صحة الرابط.',
+                'debug'   => $debug,
             ];
         }
 
-        return $this->analyzeHtml($html);
+        $debug['fetch_method']  = $fetchMethod;
+        $debug['html_length']   = strlen($html);
+        $debug['html_snippet']  = substr($html, 0, 400);
+        $debug['steps'][]       = "html_fetched_ok via $fetchMethod (" . strlen($html) . " bytes)";
+
+        return $this->analyzeHtml($html, $debug);
     }
 
-    private function fetchDirect(string $url): ?string
+    // ── Fetch Helpers ──────────────────────────────────────────────────────────
+
+    /** Returns [string|null $body, string|null $error] */
+    private function fetchDirect(string $url): array
     {
         try {
             $response = Http::withoutVerifying()->timeout(10)->withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'User-Agent'      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Accept'          => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
                 'Accept-Language' => 'ar,en-US;q=0.9,en;q=0.8',
             ])->get($url);
 
             $body = $response->body();
-            return strlen($body) > 500 ? substr($body, 0, 3000000) : null;
+            $status = $response->status();
+
+            if (strlen($body) < 500) {
+                return [null, "too_short:{$status}:" . strlen($body) . "bytes"];
+            }
+            return [substr($body, 0, 3000000), null];
         } catch (Exception $e) {
-            return null;
+            return [null, 'exception:' . $e->getMessage()];
         }
     }
 
-    private function fetchFromGoogleCache(string $url): ?string
+    private function fetchFromGoogleCache(string $url): array
     {
         try {
-            $cacheUrl = "https://webcache.googleusercontent.com/search?q=cache:" . urlencode($url);
+            $cacheUrl = 'https://webcache.googleusercontent.com/search?q=cache:' . urlencode($url);
             $response = Http::withoutVerifying()->timeout(12)->withHeaders([
                 'User-Agent' => 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
             ])->get($cacheUrl);
 
             $body = $response->body();
-            if (strlen($body) < 2000 || str_contains($body, 'google.com/search?q=')) return null;
-            return substr($body, 0, 3000000);
+            if (strlen($body) < 2000 || str_contains($body, 'google.com/search?q=')) {
+                return [null, 'google_cache_blocked_or_short'];
+            }
+            return [substr($body, 0, 3000000), null];
         } catch (Exception $e) {
-            return null;
+            return [null, 'exception:' . $e->getMessage()];
         }
     }
 
-    private function fetchFromWayback(string $url): ?string
+    private function fetchFromWayback(string $url): array
     {
         try {
-            $availUrl = "https://archive.org/wayback/available?url=" . urlencode($url);
-            $availRes = Http::withoutVerifying()->timeout(8)->get($availUrl);
+            $availUrl  = 'https://archive.org/wayback/available?url=' . urlencode($url);
+            $availRes  = Http::withoutVerifying()->timeout(8)->get($availUrl);
             $availData = $availRes->json();
             $snapshotUrl = $availData['archived_snapshots']['closest']['url'] ?? null;
 
-            if (!$snapshotUrl) return null;
+            if (!$snapshotUrl) {
+                return [null, 'no_wayback_snapshot'];
+            }
 
             $archivedRes = Http::withoutVerifying()->timeout(15)->withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (compatible; research-bot)'
+                'User-Agent' => 'Mozilla/5.0 (compatible; research-bot)',
             ])->get($snapshotUrl);
 
             $body = $archivedRes->body();
-            return strlen($body) > 2000 ? substr($body, 0, 3000000) : null;
+            if (strlen($body) < 2000) {
+                return [null, 'wayback_body_too_short'];
+            }
+            return [substr($body, 0, 3000000), null];
         } catch (Exception $e) {
-            return null;
+            return [null, 'exception:' . $e->getMessage()];
         }
     }
 
@@ -99,104 +143,91 @@ class StoreDetectorService
             || (str_contains($html, '_cf_chl_opt') && strlen($html) < 60000);
     }
 
-    private function analyzeHtml(string $html): array
+    // ── Analysis ───────────────────────────────────────────────────────────────
+
+    private function analyzeHtml(string $html, array $debug): array
     {
         $platform   = 'Unknown';
-        $theme      = 'Unknown';
         $themeId    = null;
+        $theme      = 'Unknown';
         $confidence = 0;
-        $debug = [
-            'html_length' => strlen($html),
-            'method'      => 'cdn_asset_url_extraction'
-        ];
 
-        // ── 1. Detect Platform + Theme ID ─────────────────────────────────────
+        // ── Step 2: Detect Platform + extract Theme ID from CDN URL ───────────
         //
-        // PRIMARY strategy: every Salla store loads assets from the CDN URL that
-        // contains the numeric theme ID, e.g.:
-        //   cdn.assets.salla.network/themes/1247874246/1.336.0/product-card.js
+        // Salla stores always load assets from:
+        //   cdn.assets.salla.network/themes/{THEME_ID}/x.x.x/file.js
         //
         if (preg_match('/cdn\.assets\.salla\.network\/themes\/(\d+)\//', $html, $m)) {
             $platform   = 'Salla';
             $themeId    = $m[1];
             $confidence = 99;
-            $debug['found_by']    = 'salla_cdn_asset_url';
-            $debug['detected_id'] = $themeId;
-        }
-        // SECONDARY: generic Salla keywords (e.g. maintenance pages that have no theme assets)
-        elseif (
-            str_contains($html, 'salla.sa')      ||
+            $debug['steps'][] = "platform=Salla | theme_id=$themeId (from CDN URL, confidence=99)";
+
+        } elseif (
+            str_contains($html, 'salla.sa') ||
             str_contains($html, 'salla.network') ||
-            str_contains($html, 'salla-theme')   ||
+            str_contains($html, 'salla-theme') ||
             preg_match('/salla/i', $html)
         ) {
             $platform   = 'Salla';
             $confidence = 80;
-            $debug['found_by'] = 'salla_keyword';
-        }
-        // Zid CDN URL
-        elseif (preg_match('/cdn\.zid\.sa\/themes\/([^\/]+)\//', $html, $m)) {
+            $debug['steps'][] = 'platform=Salla (keyword match, no CDN URL found, confidence=80)';
+
+        } elseif (preg_match('/cdn\.zid\.sa\/themes\/([^\/]+)\//', $html, $m)) {
             $platform   = 'Zid';
             $themeId    = $m[1];
             $confidence = 99;
-            $debug['found_by']    = 'zid_cdn_asset_url';
-            $debug['detected_id'] = $themeId;
-        }
-        // Generic Zid keywords
-        elseif (str_contains($html, 'zid.store') || str_contains($html, 'zid-theme')) {
+            $debug['steps'][] = "platform=Zid | theme_id=$themeId (from CDN URL, confidence=99)";
+
+        } elseif (str_contains($html, 'zid.store') || str_contains($html, 'zid-theme')) {
             $platform   = 'Zid';
             $confidence = 80;
-            $debug['found_by'] = 'zid_keyword';
+            $debug['steps'][] = 'platform=Zid (keyword match, no CDN URL found, confidence=80)';
         }
 
-        $debug['html_snippet'] = substr($html, 0, 300);
-
         if ($platform === 'Unknown') {
+            $debug['steps'][] = 'platform=Unknown — not a Salla/Zid store';
             return [
                 'success'  => false,
                 'platform' => 'Other',
                 'theme'    => 'Unknown',
-                'debug'    => $debug
+                'debug'    => $debug,
             ];
         }
 
         $debug['platform'] = $platform;
+        $debug['theme_id'] = $themeId;
 
-        // ── 2. Database lookup by theme ID ────────────────────────────────────
+        // ── Step 3: Database lookup ────────────────────────────────────────────
         if ($themeId) {
-            $dbTheme = Theme::where('external_id', $themeId)->first();
-            if ($dbTheme) {
-                $theme = $dbTheme->name;
-                $debug['db_hit'] = true;
-            }
-        }
+            try {
+                $dbTheme = Theme::where('external_id', $themeId)->first();
 
-        // ── 3. Local theme dictionary fallback ────────────────────────────────
-        if ($theme === 'Unknown' && $themeId) {
-            $themeMap = $this->getSallaThemeIds();
-            $theme = $themeMap[(string)$themeId] ?? $themeMap[(int)$themeId] ?? 'Unknown';
-            if ($theme !== 'Unknown') {
-                $debug['found_by'] = 'local_theme_map';
-            }
-        }
+                if ($dbTheme) {
+                    $theme = $dbTheme->name;
+                    $debug['steps'][]  = "db_lookup: FOUND theme_id=$themeId => name=$theme";
+                    $debug['db_hit']   = true;
+                    $debug['db_theme'] = ['id' => $dbTheme->id, 'external_id' => $dbTheme->external_id, 'name' => $dbTheme->name];
+                } else {
+                    $debug['steps'][] = "db_lookup: NOT FOUND for theme_id=$themeId — check your themes table";
+                    $debug['db_hit']  = false;
 
-        // ── 4. Last resort: scan all known IDs across the full HTML ───────────
-        if ($theme === 'Unknown' && $platform === 'Salla') {
-            $themeMap = $this->getSallaThemeIds();
-            foreach ($themeMap as $id => $name) {
-                if (str_contains($html, (string)$id)) {
-                    $themeId             = (string)$id;
-                    $theme               = $name;
-                    $debug['found_by']    = 'exhaustive_html_scan';
-                    $debug['detected_id'] = $themeId;
-                    break;
+                    // Show sample of what IS in the DB to help debug
+                    $sampleIds = Theme::limit(5)->pluck('external_id')->toArray();
+                    $debug['db_sample_ids'] = $sampleIds;
+                    $debug['db_count']      = Theme::count();
                 }
+            } catch (Exception $e) {
+                $debug['steps'][]    = 'db_error: ' . $e->getMessage();
+                $debug['db_error']   = $e->getMessage();
             }
+        } else {
+            $debug['steps'][] = 'db_lookup: SKIPPED — no theme_id extracted (Salla keyword-only detection)';
         }
 
-        $debug['detected_id']      = $themeId;
-        $debug['detected_name']    = $theme;
-        $debug['service_version']  = '2.0.0_CDN_URL';
+        // ── Step 4: Final result ───────────────────────────────────────────────
+        $debug['detected_id']   = $themeId;
+        $debug['detected_name'] = $theme;
 
         return [
             'success'    => true,
@@ -204,77 +235,7 @@ class StoreDetectorService
             'theme'      => $theme,
             'confidence' => $confidence,
             'debug'      => $debug,
-            'whatsapp'   => '201284867755'
-        ];
-    }
-
-    private function getSallaThemeIds(): array
-    {
-        return [
-            "581928698"  => "سيليا",
-            "632105401"  => "سيليا",
-            "1155479931" => "زينة",
-            "596333041"  => "أطياف",
-            "538856565"  => "أطياف",
-            "766360058"  => "فخامة",
-            "1617628556" => "امتياز",
-            "1034648396" => "ملاك",
-            "1696219221" => "وسام",
-            "197173496"  => "مختلف",
-            "575338046"  => "طاهر",
-            "513499943"  => "بريستيج",
-            "268429610"  => "نمو",
-            "1245464956" => "جميل",
-            "1049159835" => "موعد",
-            "600639717"  => "كليك",
-            "466157229"  => "أكاسيا",
-            "2048178472" => "بيوتي",
-            "1480248829" => "متجر",
-            "2101895899" => "رهيب",
-            "1894368909" => "اطلالة",
-            "1974201424" => "رؤية",
-            "1660707346" => "رقمى",
-            "1753517624" => "عالي",
-            "1755865368" => "بوتيك",
-            "1253916907" => "بيلا",
-            "724522601"  => "مبدع",
-            "1048198927" => "شوبنج",
-            "2093313756" => "يافا",
-            "2142196958" => "بريق",
-            "1016570170" => "علا",
-            "2071596307" => "جلامور",
-            "1485429532" => "ريس",
-            "539684003"  => "خيوط",
-            "1462103872" => "قصص",
-            "1145699248" => "كراون",
-            "338190499"  => "كيان",
-            "1582624105" => "لوفيزا",
-            "368921700"  => "نماء",
-            "1662840947" => "ماركت",
-            "245671147"  => "روح",
-            "822457965"  => "عطاء",
-            "1546328629" => "سمارت",
-            "638956130"  => "ثمن",
-            "945336214"  => "ساجي",
-            "1827574400" => "رناواي",
-            "1534326188" => "رِحلة",
-            "1460868166" => "آرت",
-            "502925332"  => "جلوبى",
-            "268341705"  => "ذهب",
-            "1544606478" => "مرح",
-            "265993961"  => "عِنان",
-            "1241617822" => "رحيق",
-            "2084773836" => "فريشمارت",
-            "1822327849" => "قهوة",
-            "429755461"  => "غنا",
-            "1780291170" => "بيانو",
-            "510413540"  => "فاشون",
-            "781706584"  => "جميلة",
-            "1577196143" => "بليند",
-            "77875411"   => "جولدن",
-            "1734608997" => "بـريـس_تـا",
-            "1980654236" => "خيال",
-            "1247874246" => "رائد",
+            'whatsapp'   => '201284867755',
         ];
     }
 }
