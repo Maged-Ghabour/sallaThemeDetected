@@ -1,10 +1,10 @@
 <?php
 /**
- * Test live server: affiliate.iqla3.com
+ * Detailed test for affiliate.iqla3.com
  */
 
 $liveUrl = 'https://affiliate.iqla3.com';
-$testStoreUrl = 'https://gsswn-albn.com';
+$testStoreUrl = 'https://snaf.co/';
 
 echo "=== Testing $liveUrl ===\n\n";
 
@@ -18,16 +18,11 @@ $ctx = stream_context_create([
     'ssl' => ['verify_peer' => false, 'verify_peer_name' => false]
 ]);
 
-// Step 1: Get homepage + CSRF
 $html = @file_get_contents($liveUrl, false, $ctx);
-echo "Homepage response length: " . strlen($html ?? '') . " bytes\n";
-
 preg_match('/<meta name="csrf-token" content="([^"]+)"/', $html ?? '', $csrfMatch);
 $csrf = $csrfMatch[1] ?? '';
-echo "CSRF Token: " . ($csrf ? substr($csrf, 0, 30) . "..." : "NOT FOUND") . "\n\n";
+echo "CSRF Token: " . ($csrf ? "FOUND" : "NOT FOUND") . "\n\n";
 
-// Step 2: Call /detect
-echo "--- Calling POST /detect with $testStoreUrl ---\n";
 $payload = json_encode(['url' => $testStoreUrl]);
 $detectCtx = stream_context_create([
     'http' => [
@@ -47,19 +42,20 @@ $detectCtx = stream_context_create([
 ]);
 
 $result = @file_get_contents("$liveUrl/detect", false, $detectCtx);
-echo "Raw response: " . ($result ?: "EMPTY/FAILED") . "\n\n";
-
 $data = json_decode($result ?? '', true);
-if ($data) {
-    echo "=== RESULT ===\n";
-    echo "Success    : " . ($data['success'] ? 'YES' : 'NO') . "\n";
-    echo "Platform   : " . ($data['platform'] ?? 'N/A') . "\n";
-    echo "Theme      : " . ($data['theme'] ?? 'N/A') . "\n";
-    echo "Confidence : " . ($data['confidence'] ?? 'N/A') . "%\n";
-    echo "Version    : " . ($data['debug']['service_version'] ?? '*** OLD VERSION ***') . "\n";
-    echo "Found by   : " . ($data['debug']['found_by'] ?? 'N/A') . "\n";
-    echo "Theme ID   : " . ($data['debug']['detected_id'] ?? 'N/A') . "\n";
-    echo "HTML length: " . ($data['debug']['html_length'] ?? 'N/A') . "\n";
+
+if ($data && isset($data['success'])) {
+    echo "=== SUCCESSFUL JSON RESPONSE ===\n";
+    print_r($data);
 } else {
-    echo "Could not parse JSON response.\n";
+    echo "=== ERROR OR NON-JSON RESPONSE ===\n";
+    echo "Status Line: " . ($http_response_header[0] ?? 'N/A') . "\n";
+    echo "First 1000 chars of response:\n";
+    echo substr($result ?? 'EMPTY', 0, 1000) . "\n";
+    
+    if (str_contains($result ?? '', 'message')) {
+        echo "\nExtracted Message: ";
+        if (preg_match('/"message":"([^"]+)"/', $result, $m)) echo $m[1];
+        elseif (preg_match('/<h1[^>]*>([^<]+)<\/h1>/', $result, $m)) echo $m[1];
+    }
 }
