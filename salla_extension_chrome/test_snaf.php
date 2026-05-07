@@ -5,7 +5,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 use App\Services\StoreDetectorService;
 
-$url = 'https://snaf.co/';
+$url = 'https://bohperfume.com';
 $service = new StoreDetectorService();
 $result = $service->detect($url);
 
