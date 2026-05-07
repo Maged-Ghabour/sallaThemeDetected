@@ -15,14 +15,15 @@ class StoreDetectorService
             $url = "https://" . $url;
         }
 
-        // Try direct fetch first (WhatsApp Mode)
+        // Try direct fetch
         $html = $this->fetchDirect($url);
 
-        // Fallbacks
+        // Fallback to Google Cache
         if (!$html || $this->isCloudflareChallenge($html)) {
             $html = $this->fetchFromGoogleCache($url);
         }
 
+        // Fallback to Wayback Machine
         if (!$html || $this->isCloudflareChallenge($html)) {
             $html = $this->fetchFromWayback($url);
         }
@@ -40,20 +41,14 @@ class StoreDetectorService
     private function fetchDirect(string $url): ?string
     {
         try {
-            // Modern Browser User-Agent
             $response = Http::withoutVerifying()->timeout(10)->withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
                 'Accept-Language' => 'ar,en-US;q=0.9,en;q=0.8',
             ])->get($url);
 
-            
             $body = $response->body();
-            if ($response->successful() && (str_contains($body, 'salla') || str_contains($body, 'Salla'))) {
-                return substr($body, 0, 3000000);
-            }
-            
-            return strlen($body) > 1000 ? substr($body, 0, 3000000) : null;
+            return strlen($body) > 500 ? substr($body, 0, 3000000) : null;
         } catch (Exception $e) {
             return null;
         }
@@ -106,122 +101,180 @@ class StoreDetectorService
 
     private function analyzeHtml(string $html): array
     {
-        $platform = 'Unknown';
-        $theme = 'Unknown';
-        $themeId = null;
+        $platform   = 'Unknown';
+        $theme      = 'Unknown';
+        $themeId    = null;
         $confidence = 0;
         $debug = [
             'html_length' => strlen($html),
-            'whatsapp_mode' => true,
-            'exhaustive_scan' => true
+            'method'      => 'cdn_asset_url_extraction'
         ];
 
-        // 1. Detect Platform (Case-Insensitive)
-        $htmlLower = strtolower($html);
-        if (str_contains($htmlLower, 'salla.sa') || str_contains($htmlLower, 'salla.network') || str_contains($htmlLower, 'salla-theme') || str_contains($htmlLower, 'salla-cdn') || preg_match('/salla/i', $html)) {
-            $platform = 'Salla';
-            $confidence = 95;
-        } elseif (str_contains($htmlLower, 'zid.store') || str_contains($htmlLower, 'zid-theme')) {
-            $platform = 'Zid';
-            $confidence = 90;
+        // ── 1. Detect Platform + Theme ID ─────────────────────────────────────
+        //
+        // PRIMARY strategy: every Salla store loads assets from the CDN URL that
+        // contains the numeric theme ID, e.g.:
+        //   cdn.assets.salla.network/themes/1247874246/1.336.0/product-card.js
+        //
+        if (preg_match('/cdn\.assets\.salla\.network\/themes\/(\d+)\//', $html, $m)) {
+            $platform   = 'Salla';
+            $themeId    = $m[1];
+            $confidence = 99;
+            $debug['found_by']    = 'salla_cdn_asset_url';
+            $debug['detected_id'] = $themeId;
+        }
+        // SECONDARY: generic Salla keywords (e.g. maintenance pages that have no theme assets)
+        elseif (
+            str_contains($html, 'salla.sa')      ||
+            str_contains($html, 'salla.network') ||
+            str_contains($html, 'salla-theme')   ||
+            preg_match('/salla/i', $html)
+        ) {
+            $platform   = 'Salla';
+            $confidence = 80;
+            $debug['found_by'] = 'salla_keyword';
+        }
+        // Zid CDN URL
+        elseif (preg_match('/cdn\.zid\.sa\/themes\/([^\/]+)\//', $html, $m)) {
+            $platform   = 'Zid';
+            $themeId    = $m[1];
+            $confidence = 99;
+            $debug['found_by']    = 'zid_cdn_asset_url';
+            $debug['detected_id'] = $themeId;
+        }
+        // Generic Zid keywords
+        elseif (str_contains($html, 'zid.store') || str_contains($html, 'zid-theme')) {
+            $platform   = 'Zid';
+            $confidence = 80;
+            $debug['found_by'] = 'zid_keyword';
         }
 
-        $debug['html_snippet'] = substr($html, 0, 500);
-
+        $debug['html_snippet'] = substr($html, 0, 300);
 
         if ($platform === 'Unknown') {
             return [
-                'success' => false,
+                'success'  => false,
                 'platform' => 'Other',
-                'theme' => 'Unknown',
-                'debug' => $debug
+                'theme'    => 'Unknown',
+                'debug'    => $debug
             ];
         }
 
         $debug['platform'] = $platform;
 
-        // 2. Extract Theme ID from Asset URLs (Accurate Detection)
-        if ($platform === 'Salla') {
-            if (preg_match('/cdn\.assets\.salla\.network\/themes\/(\d+)\//', $html, $matches)) {
-                $themeId = $matches[1];
-                $debug['found_by'] = 'salla_asset_url';
-            }
-        } elseif ($platform === 'Zid') {
-            if (preg_match('/cdn\.zid\.sa\/themes\/([^\/]+)\//', $html, $matches)) {
-                $themeId = $matches[1];
-                $debug['found_by'] = 'zid_asset_url';
-            }
-        }
-
-        // 3. Database Lookup for Theme Name
+        // ── 2. Database lookup by theme ID ────────────────────────────────────
         if ($themeId) {
             $dbTheme = Theme::where('external_id', $themeId)->first();
             if ($dbTheme) {
                 $theme = $dbTheme->name;
-                $debug['found_in_db'] = true;
+                $debug['db_hit'] = true;
             }
         }
 
-        // 4. Fallback: Load Theme Dictionary & Exhaustive Search (if DB lookup failed or ID not found in assets)
-        if ($theme === 'Unknown') {
+        // ── 3. Local theme dictionary fallback ────────────────────────────────
+        if ($theme === 'Unknown' && $themeId) {
             $themeMap = $this->getSallaThemeIds();
-            
-            // Search for ID in assets if not found by specific regex above
-            if (!$themeId) {
-                if (preg_match_all('/(\d{8,15})/', $html, $matches)) {
-                    $foundNumbers = array_unique($matches[1]);
-                    foreach ($foundNumbers as $num) {
-                        if (isset($themeMap[(string)$num]) || isset($themeMap[(int)$num])) {
-                            $themeId = $num;
-                            $theme = $themeMap[$num];
-                            $debug['found_by'] = 'exhaustive_id_match';
-                            break;
-                        }
-                    }
-                }
-            } else if (isset($themeMap[$themeId])) {
-                $theme = $themeMap[$themeId];
+            $theme = $themeMap[(string)$themeId] ?? $themeMap[(int)$themeId] ?? 'Unknown';
+            if ($theme !== 'Unknown') {
+                $debug['found_by'] = 'local_theme_map';
             }
         }
 
-        // Special check for Selia (Common in Boh Perfume)
-        if ($theme === 'Unknown' && str_contains($html, '581928698')) {
-            $theme = 'سيليا';
-            $themeId = '581928698';
-            $debug['found_by'] = 'manual_selia_check';
+        // ── 4. Last resort: scan all known IDs across the full HTML ───────────
+        if ($theme === 'Unknown' && $platform === 'Salla') {
+            $themeMap = $this->getSallaThemeIds();
+            foreach ($themeMap as $id => $name) {
+                if (str_contains($html, (string)$id)) {
+                    $themeId             = (string)$id;
+                    $theme               = $name;
+                    $debug['found_by']    = 'exhaustive_html_scan';
+                    $debug['detected_id'] = $themeId;
+                    break;
+                }
+            }
         }
 
-        $debug['detected_id'] = $themeId;
-        $debug['detected_name'] = $theme;
-        $debug['service_version'] = '1.2.4_DYNAMIC';
+        $debug['detected_id']      = $themeId;
+        $debug['detected_name']    = $theme;
+        $debug['service_version']  = '2.0.0_CDN_URL';
 
         return [
-            'success' => true,
-            'platform' => $platform,
-            'theme' => $theme,
+            'success'    => true,
+            'platform'   => $platform,
+            'theme'      => $theme,
             'confidence' => $confidence,
-            'debug' => $debug,
-            'whatsapp' => '201284867755'
+            'debug'      => $debug,
+            'whatsapp'   => '201284867755'
         ];
     }
 
     private function getSallaThemeIds(): array
     {
         return [
-            "581928698"=> "سيليا", "632105401"=> "سيليا", "1155479931"=> "زينة", "596333041"=> "أطياف", "538856565"=> "أطياف",
-            "766360058"=> "فخامة", "1617628556"=> "امتياز", "1034648396"=> "ملاك", "1696219221"=> "وسام", "197173496"=> "مختلف",
-            "575338046"=> "طاهر", "513499943"=> "بريستيج", "268429610"=> "نمو", "1245464956"=> "جميل", "1049159835"=> "موعد",
-            "600639717"=> "كليك", "466157229"=> "أكاسيا", "2048178472"=> "بيوتي", "1480248829"=> "متجر", "2101895899"=> "رهيب",
-            "1894368909"=> "اطلالة", "1974201424"=> "رؤية", "1660707346"=> "رقمى", "581928698"=> "سيليا", "632105401"=> "سيليا", "1753517624"=> "عالي",
-            "1755865368"=> "بوتيك", "1253916907"=> "بيلا", "724522601"=> "مبدع", "1048198927"=> "شوبنج", "2093313756"=> "يافا",
-            "2142196958"=> "بريق", "1016570170"=> "علا", "2071596307"=> "جلامور", "1485429532"=> "ريس", "539684003"=> "خيوط",
-            "1462103872"=> "قصص", "1145699248"=> "كراون", "338190499"=> "كيان", "1582624105"=> "لوفيزا", "368921700"=> "نماء",
-            "1662840947"=> "ماركت", "245671147"=> "روح", "822457965"=> "عطاء", "1546328629"=> "سمارت", "638956130"=> "ثمن",
-            "945336214"=> "ساجي", "1827574400"=> "رناواي", "596333041"=> "أطياف", "1534326188"=> "رِحلة", "1460868166"=> "آرت",
-            "502925332"=> "جلوبى", "268341705"=> "ذهب", "1544606478"=> "مرح", "265993961"=> "عِنان", "1241617822"=> "رحيق", "538856565"=> "أطياف",
-            "1155479931"=> "زينة", "2084773836"=> "فريشمارت", "1822327849"=> "قهوة", "429755461"=> "غنا", "1780291170"=> "بيانو", "510413540"=> "فاشون",
-            "781706584"=> "جميلة", "1577196143"=> "بليند", "77875411"=> "جولدن", "1734608997"=> "بـريـس_تـا", "1980654236"=> "خيال",
-            "1155479931"=> "زينة",
+            "581928698"  => "سيليا",
+            "632105401"  => "سيليا",
+            "1155479931" => "زينة",
+            "596333041"  => "أطياف",
+            "538856565"  => "أطياف",
+            "766360058"  => "فخامة",
+            "1617628556" => "امتياز",
+            "1034648396" => "ملاك",
+            "1696219221" => "وسام",
+            "197173496"  => "مختلف",
+            "575338046"  => "طاهر",
+            "513499943"  => "بريستيج",
+            "268429610"  => "نمو",
+            "1245464956" => "جميل",
+            "1049159835" => "موعد",
+            "600639717"  => "كليك",
+            "466157229"  => "أكاسيا",
+            "2048178472" => "بيوتي",
+            "1480248829" => "متجر",
+            "2101895899" => "رهيب",
+            "1894368909" => "اطلالة",
+            "1974201424" => "رؤية",
+            "1660707346" => "رقمى",
+            "1753517624" => "عالي",
+            "1755865368" => "بوتيك",
+            "1253916907" => "بيلا",
+            "724522601"  => "مبدع",
+            "1048198927" => "شوبنج",
+            "2093313756" => "يافا",
+            "2142196958" => "بريق",
+            "1016570170" => "علا",
+            "2071596307" => "جلامور",
+            "1485429532" => "ريس",
+            "539684003"  => "خيوط",
+            "1462103872" => "قصص",
+            "1145699248" => "كراون",
+            "338190499"  => "كيان",
+            "1582624105" => "لوفيزا",
+            "368921700"  => "نماء",
+            "1662840947" => "ماركت",
+            "245671147"  => "روح",
+            "822457965"  => "عطاء",
+            "1546328629" => "سمارت",
+            "638956130"  => "ثمن",
+            "945336214"  => "ساجي",
+            "1827574400" => "رناواي",
+            "1534326188" => "رِحلة",
+            "1460868166" => "آرت",
+            "502925332"  => "جلوبى",
+            "268341705"  => "ذهب",
+            "1544606478" => "مرح",
+            "265993961"  => "عِنان",
+            "1241617822" => "رحيق",
+            "2084773836" => "فريشمارت",
+            "1822327849" => "قهوة",
+            "429755461"  => "غنا",
+            "1780291170" => "بيانو",
+            "510413540"  => "فاشون",
+            "781706584"  => "جميلة",
+            "1577196143" => "بليند",
+            "77875411"   => "جولدن",
+            "1734608997" => "بـريـس_تـا",
+            "1980654236" => "خيال",
+            "1247874246" => "رائد",
         ];
     }
 }
